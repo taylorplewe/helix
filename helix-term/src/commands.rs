@@ -3088,7 +3088,6 @@ fn file_picker_in_current_directory(cx: &mut Context) {
     cx.push_layer(Box::new(overlaid(picker)));
 }
 
-<<<<<<< HEAD
 fn file_explorer(cx: &mut Context) {
     let root = find_workspace().0;
     if !root.exists() {
