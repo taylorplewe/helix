@@ -29,7 +29,7 @@ use std::{
     collections::{BTreeMap, HashMap, HashSet},
     fs,
     io::{self, stdin},
-    num::NonZeroUsize,
+    num::{NonZeroU8, NonZeroUsize},
     path::{Path, PathBuf},
     pin::Pin,
     sync::Arc,
@@ -172,6 +172,40 @@ pub struct GutterLineNumbersConfig {
 impl Default for GutterLineNumbersConfig {
     fn default() -> Self {
         Self { min_width: 3 }
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum InlineBlameShow {
+    /// Do not show inline blame, and do not request it in the background
+    ///
+    /// When manually requesting the inline blame, it may take several seconds to appear.
+    Never,
+    /// Show the inline blame on the cursor line
+    CursorLine,
+    /// Show the inline blame on every other line
+    AllLines,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case", default, deny_unknown_fields)]
+pub struct InlineBlameConfig {
+    /// How to show the inline blame
+    pub show: InlineBlameShow,
+    /// Whether the inline blame should be fetched in the background
+    pub auto_fetch: bool,
+    /// How the inline blame should look like and the information it includes
+    pub format: String,
+}
+
+impl Default for InlineBlameConfig {
+    fn default() -> Self {
+        Self {
+            show: InlineBlameShow::Never,
+            format: "{author}, {time-ago} • {title} • {commit}".to_owned(),
+            auto_fetch: false,
+        }
     }
 }
 
@@ -373,6 +407,8 @@ pub struct Config {
     /// Whether to read settings from [EditorConfig](https://editorconfig.org) files. Defaults to
     /// `true`.
     pub editor_config: bool,
+    /// Inline blame allows showing the latest commit that affected the line the cursor is on as virtual text
+    pub inline_blame: InlineBlameConfig,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, Eq, PartialOrd, Ord)]
@@ -459,6 +495,9 @@ pub struct LspConfig {
     pub display_signature_help_docs: bool,
     /// Display inlay hints
     pub display_inlay_hints: bool,
+    /// Maximum displayed length of inlay hints (excluding the added trailing `…`).
+    /// If it's `None`, there's no limit
+    pub inlay_hints_length_limit: Option<NonZeroU8>,
     /// Display document color swatches
     pub display_color_swatches: bool,
     /// Whether to enable snippet support
@@ -476,6 +515,7 @@ impl Default for LspConfig {
             auto_signature_help: true,
             display_signature_help_docs: true,
             display_inlay_hints: false,
+            inlay_hints_length_limit: None,
             snippets: true,
             goto_reference_include_declaration: true,
             display_color_swatches: true,
@@ -579,6 +619,9 @@ pub enum StatusLineElement {
 
     /// The file line endings (CRLF or LF)
     FileLineEnding,
+
+    /// The file indentation style
+    FileIndentStyle,
 
     /// The file type (language ID or "text")
     FileType,
@@ -1023,6 +1066,7 @@ impl Default for Config {
             inline_diagnostics: InlineDiagnosticsConfig::default(),
             end_of_line_diagnostics: DiagnosticFilter::Disable,
             clipboard_provider: ClipboardProvider::default(),
+            inline_blame: InlineBlameConfig::default(),
             editor_config: true,
         }
     }
@@ -1432,7 +1476,11 @@ impl Editor {
                 log::error!("failed to apply workspace edit: {err:?}")
             }
         }
-        fs::rename(old_path, &new_path)?;
+
+        if old_path.exists() {
+            fs::rename(old_path, &new_path)?;
+        }
+
         if let Some(doc) = self.document_by_path(old_path) {
             self.set_doc_path(doc.id(), &new_path);
         }
@@ -1798,11 +1846,13 @@ impl Editor {
             doc.set_version_control_head(self.diff_providers.get_current_head_name(&path));
 
             let id = self.new_document(doc);
+
             self.launch_language_servers(id);
 
             helix_event::dispatch(DocumentDidOpen {
                 editor: self,
                 doc: id,
+                path: &path,
             });
 
             id
@@ -2267,16 +2317,20 @@ impl Editor {
 
 fn try_restore_indent(doc: &mut Document, view: &mut View) {
     use helix_core::{
-        chars::char_is_whitespace, line_ending::line_end_char_index, Operation, Transaction,
+        chars::char_is_whitespace,
+        line_ending::{line_end_char_index, str_is_line_ending},
+        unicode::segmentation::UnicodeSegmentation,
+        Operation, Transaction,
     };
 
     fn inserted_a_new_blank_line(changes: &[Operation], pos: usize, line_end_pos: usize) -> bool {
         if let [Operation::Retain(move_pos), Operation::Insert(ref inserted_str), Operation::Retain(_)] =
             changes
         {
+            let mut graphemes = inserted_str.graphemes(true);
             move_pos + inserted_str.len() == pos
-                && inserted_str.starts_with('\n')
-                && inserted_str.chars().skip(1).all(char_is_whitespace)
+                && graphemes.next().is_some_and(str_is_line_ending)
+                && graphemes.all(|g| g.chars().all(char_is_whitespace))
                 && pos == line_end_pos // ensure no characters exists after current position
         } else {
             false

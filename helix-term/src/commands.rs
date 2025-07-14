@@ -10,6 +10,7 @@ use helix_stdx::{
     rope::{self, RopeSliceExt},
 };
 use helix_vcs::{FileChange, Hunk};
+use helix_view::document::LineBlameError;
 pub use lsp::*;
 use tui::{
     text::{Span, Spans},
@@ -599,8 +600,11 @@ impl MappableCommand {
         command_palette, "Open command palette",
         goto_word, "Jump to a two-character label",
         extend_to_word, "Extend to a two-character label",
-        goto_next_tabstop, "goto next snippet placeholder",
-        goto_prev_tabstop, "goto next snippet placeholder",
+        goto_next_tabstop, "Goto next snippet placeholder",
+        goto_prev_tabstop, "Goto next snippet placeholder",
+        blame_line, "Show blame for the current line",
+        rotate_selections_first, "Make the first selection your primary one",
+        rotate_selections_last, "Make the last selection your primary one",
     );
 }
 
@@ -3491,6 +3495,55 @@ fn insert_at_line_start(cx: &mut Context) {
     insert_with_indent(cx, IndentFallbackPos::LineStart);
 }
 
+pub(crate) fn blame_line_impl(editor: &mut Editor, doc_id: DocumentId, cursor_line: u32) {
+    let inline_blame_config = &editor.config().inline_blame;
+    let Some(doc) = editor.document(doc_id) else {
+        return;
+    };
+    let line_blame = match doc.line_blame(cursor_line, &inline_blame_config.format) {
+        result
+            if (result.is_ok() && doc.is_blame_potentially_out_of_date)
+                || matches!(result, Err(LineBlameError::NotReadyYet) if !inline_blame_config.auto_fetch) =>
+        {
+            if let Some(path) = doc.path() {
+                let tx = editor.handlers.blame.clone();
+                helix_event::send_blocking(
+                    &tx,
+                    helix_view::handlers::BlameEvent {
+                        path: path.to_path_buf(),
+                        doc_id: doc.id(),
+                        line: Some(cursor_line),
+                    },
+                );
+                editor.set_status(format!("Requested blame for {}...", path.display()));
+                let doc = editor
+                    .document_mut(doc_id)
+                    .expect("exists since we return from the function earlier if it does not");
+                doc.is_blame_potentially_out_of_date = false;
+            } else {
+                editor.set_error("Could not get path of document");
+            };
+            return;
+        }
+        Ok(line_blame) => line_blame,
+        Err(err @ (LineBlameError::NotCommittedYet | LineBlameError::NotReadyYet)) => {
+            editor.set_status(err.to_string());
+            return;
+        }
+        Err(err @ LineBlameError::NoFileBlame(_, _)) => {
+            editor.set_error(err.to_string());
+            return;
+        }
+    };
+
+    editor.set_status(line_blame);
+}
+
+fn blame_line(cx: &mut Context) {
+    let (view, doc) = current_ref!(cx.editor);
+    blame_line_impl(cx.editor, doc.id(), doc.cursor_line(view.id) as u32);
+}
+
 // `A` inserts at the end of each line with a selection.
 // If the line is empty, automatically indent.
 fn insert_at_line_end(cx: &mut Context) {
@@ -3762,7 +3815,8 @@ fn normal_mode(cx: &mut Context) {
 }
 
 // Store a jump on the jumplist.
-fn push_jump(view: &mut View, doc: &Document) {
+fn push_jump(view: &mut View, doc: &mut Document) {
+    doc.append_changes_to_history(view);
     let jump = (doc.id(), doc.selection(view.id).clone());
     view.jumps.push(jump);
 }
@@ -4205,6 +4259,7 @@ pub mod insert {
             None
         };
 
+        let mut last_pos = 0;
         let mut transaction = Transaction::change_by_selection(contents, selection, |range| {
             // Tracks the number of trailing whitespace characters deleted by this selection.
             let mut chars_deleted = 0;
@@ -4226,7 +4281,8 @@ pub mod insert {
             let (from, to, local_offs) = if let Some(idx) =
                 text.slice(line_start..pos).last_non_whitespace_char()
             {
-                let first_trailing_whitespace_char = (line_start + idx + 1).min(pos);
+                let first_trailing_whitespace_char = (line_start + idx + 1).clamp(last_pos, pos);
+                last_pos = pos;
                 let line = text.line(current_line);
 
                 let indent = match line.first_non_whitespace_char() {
@@ -5287,6 +5343,21 @@ fn rotate_selections_forward(cx: &mut Context) {
 }
 fn rotate_selections_backward(cx: &mut Context) {
     rotate_selections(cx, Direction::Backward)
+}
+
+fn rotate_selections_first(cx: &mut Context) {
+    let (view, doc) = current!(cx.editor);
+    let mut selection = doc.selection(view.id).clone();
+    selection.set_primary_index(0);
+    doc.set_selection(view.id, selection);
+}
+
+fn rotate_selections_last(cx: &mut Context) {
+    let (view, doc) = current!(cx.editor);
+    let mut selection = doc.selection(view.id).clone();
+    let len = selection.len();
+    selection.set_primary_index(len - 1);
+    doc.set_selection(view.id, selection);
 }
 
 enum ReorderStrategy {

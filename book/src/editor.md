@@ -4,6 +4,7 @@
 - [`[editor.clipboard-provider]` Section](#editorclipboard-provider-section)
 - [`[editor.statusline]` Section](#editorstatusline-section)
 - [`[editor.lsp]` Section](#editorlsp-section)
+- [`[editor.inline-blame]` Section](#editorinlineblame-section)
 - [`[editor.cursor-shape]` Section](#editorcursor-shape-section)
 - [`[editor.file-picker]` Section](#editorfile-picker-section)
 - [`[editor.auto-pairs]` Section](#editorauto-pairs-section)
@@ -133,6 +134,7 @@ The following statusline elements can be configured:
 | `file-modification-indicator` | The indicator to show whether the file is modified (a `[+]` appears when there are unsaved changes) |
 | `file-encoding` | The encoding of the opened file if it differs from UTF-8 |
 | `file-line-ending` | The file line endings (CRLF or LF) |
+| `file-indent-style` | The file indentation style |
 | `read-only-indicator` | An indicator that shows `[readonly]` when a file cannot be written |
 | `total-line-numbers` | The total line numbers of the opened file |
 | `file-type` | The type of the opened file |
@@ -156,6 +158,7 @@ The following statusline elements can be configured:
 | `display-progress-messages` | Display LSP progress messages below statusline[^1]    | `false` |
 | `auto-signature-help` | Enable automatic popup of signature help (parameter hints)  | `true`  |
 | `display-inlay-hints` | Display inlay hints[^2]                                     | `false` |
+| `inlay-hints-length-limit` | Maximum displayed length (non-zero number) of inlay hints | Unset by default  |
 | `display-color-swatches` | Show color swatches next to colors | `true` |
 | `display-signature-help-docs` | Display docs under signature help popup             | `true`  |
 | `snippets`      | Enables snippet completions. Requires a server restart (`:lsp-restart`) to take effect after `:config-reload`/`:set`. | `true`  |
@@ -164,6 +167,39 @@ The following statusline elements can be configured:
 [^1]: By default, a progress spinner is shown in the statusline beside the file path.
 
 [^2]: You may also have to activate them in the language server config for them to appear, not just in Helix. Inlay hints in Helix are still being improved on and may be a little bit laggy/janky under some circumstances. Please report any bugs you see so we can fix them!
+
+### `[editor.inline-blame]` Section
+
+Inline blame is virtual text that appears at the end of a line, displaying information about the most recent commit that affected this line.
+
+| Key     | Description                                | Default |
+| ------- | ------------------------------------------ | ------- |
+| `show` | When to show inline blame | `"never"` |
+| `auto-fetch` | Automatically fetch blame information in the background | `false` |
+| `format` | Inline blame message format | `"{author}, {time-ago} • {title} • {commit}"` |
+
+`show` can be one of the following:
+- `"all-lines"`: Inline blame is on every line.
+- `"cursor-line"`: Inline blame is only on the line of the primary cursor.
+- `"hidden"`: Inline blame is hidden.
+
+With `auto-fetch` set to `false`, blame for the current file is fetched only when explicitly requested, such as when using `space + B` to display the blame for the line of the cursor. There may be a little delay when loading the blame.
+
+When `auto-fetch` is set to `true`, blame for the file is fetched in the background; this will have no effect on performance, but will use a little bit extra resources in the background. Directly requesting the blame with `space + B` will be instant. Inline blame will show as soon as the blame is available when loading new files.
+
+When opening new files, even with `show` set to `"all-lines"` or `"cursor-line"`, the inline blame won't show. It needs to be fetched first in order to become available, which can be triggered manually with `space + B`.
+
+#### `format`
+
+Change the `format` string to customize the blame message displayed. Variables are text placeholders wrapped in curly braces: `{variable}`. The following variables are available:
+
+- `author`: The author of the commit
+- `date`: When the commit was made
+- `time-ago`: How long ago the commit was made
+- `title`: The title of the commit
+- `body`: The body of the commit
+- `commit`: The short hex SHA1 hash of the commit
+- `email`: The email of the author of the commit
 
 ### `[editor.cursor-shape]` Section
 

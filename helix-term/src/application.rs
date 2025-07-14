@@ -11,6 +11,7 @@ use helix_view::{
     align_view,
     document::{DocumentOpenError, DocumentSavedEventResult},
     editor::{ConfigEvent, EditorEvent},
+    events::EditorConfigDidChange,
     graphics::Rect,
     theme,
     tree::Layout,
@@ -364,6 +365,10 @@ impl Application {
             // the Application can apply it.
             ConfigEvent::Update(editor_config) => {
                 let mut app_config = (*self.config.load().clone()).clone();
+                helix_event::dispatch(EditorConfigDidChange {
+                    old_config: &app_config.editor,
+                    editor: &mut self.editor,
+                });
                 app_config.editor = *editor_config;
                 if let Err(err) = self.terminal.reconfigure(app_config.editor.clone().into()) {
                     self.editor.set_error(err.to_string());
@@ -384,32 +389,30 @@ impl Application {
         }
     }
 
-    /// refresh language config after config change
-    fn refresh_language_config(&mut self) -> Result<(), Error> {
-        let lang_loader = helix_core::config::user_lang_loader()?;
-
-        self.editor.syn_loader.store(Arc::new(lang_loader));
-        let loader = self.editor.syn_loader.load();
-        for document in self.editor.documents.values_mut() {
-            document.detect_language(&loader);
-            let diagnostics = Editor::doc_diagnostics(
-                &self.editor.language_servers,
-                &self.editor.diagnostics,
-                document,
-            );
-            document.replace_diagnostics(diagnostics, &[], None);
-        }
-
-        Ok(())
-    }
-
     fn refresh_config(&mut self) {
         let mut refresh_config = || -> Result<(), Error> {
             let default_config = Config::load_default()
                 .map_err(|err| anyhow::anyhow!("Failed to load config: {}", err))?;
-            self.refresh_language_config()?;
-            // Refresh theme after config change
+
+            // Update the syntax language loader before setting the theme. Setting the theme will
+            // call `Loader::set_scopes` which must be done before the documents are re-parsed for
+            // the sake of locals highlighting.
+            let lang_loader = helix_core::config::user_lang_loader()?;
+            self.editor.syn_loader.store(Arc::new(lang_loader));
             Self::load_configured_theme(&mut self.editor, &default_config);
+
+            // Re-parse any open documents with the new language config.
+            let lang_loader = self.editor.syn_loader.load();
+            for document in self.editor.documents.values_mut() {
+                document.detect_language(&lang_loader);
+                let diagnostics = Editor::doc_diagnostics(
+                    &self.editor.language_servers,
+                    &self.editor.diagnostics,
+                    document,
+                );
+                document.replace_diagnostics(diagnostics, &[], None);
+            }
+
             self.terminal
                 .reconfigure(default_config.editor.clone().into())?;
             // Store new config
