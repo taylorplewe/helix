@@ -1,8 +1,3 @@
-
-; Variables
-
-(identifier) @variable
-
 [
   (calling_convention)
   (tag)
@@ -269,3 +264,7 @@
 (call_expression argument: (identifier) @variable.parameter "=")
 
 (procedure_type (parameters (parameter (identifier) @variable.parameter)))
+
+; Variables
+
+(identifier) @variable
