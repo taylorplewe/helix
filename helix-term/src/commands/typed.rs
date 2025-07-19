@@ -2762,7 +2762,7 @@ pub const TYPABLE_COMMAND_LIST: &[TypableCommand] = &[
             positionals: (0, Some(0)),
             ..Signature::DEFAULT
         },
-    },    
+    },
     TypableCommand {
         name: "write",
         aliases: &["w"],
