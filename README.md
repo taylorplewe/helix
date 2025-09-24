@@ -4,6 +4,7 @@ This fork adds a collection of various other forks & small features to helix:
 - icon support ([PR](https://github.com/helix-editor/helix/pull/12369))
 - `:buffer-reopen` - ability to re-open recently closed buffers ([PR](https://github.com/helix-editor/helix/pull/13568))
 - keep active bufferline tab in view at all times
+- add `J` and `K` to sticky view mode (`<space + z>`) for scrolling up and down half pages
 
 ---
 
