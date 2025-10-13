@@ -28,16 +28,16 @@ pub fn setup(config: Arc<ArcSwap<Config>>) -> Handlers {
     let signature_hints = SignatureHelpHandler::new().spawn();
     let auto_save = AutoSaveHandler::new().spawn();
     let document_colors = DocumentColorsHandler::default().spawn();
-    let word_index = word_index::Handler::spawn();
     let blame = BlameHandler::default().spawn();
+    let word_index = word_index::Handler::spawn();
 
     let handlers = Handlers {
         completions: helix_view::handlers::completion::CompletionHandler::new(event_tx),
         signature_hints,
         auto_save,
         document_colors,
-        word_index,
         blame,
+        word_index,
     };
 
     helix_view::handlers::register_hooks(&handlers);

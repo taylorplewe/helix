@@ -96,7 +96,7 @@ impl Default for DiffProviderRegistry {
 ///
 /// `Copy` is simply to ensure the `clone()` call is the simplest it can be.
 #[derive(Copy, Clone, Debug)]
-pub enum DiffProvider {
+enum DiffProvider {
     #[cfg(feature = "git")]
     Git,
     None,
