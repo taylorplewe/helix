@@ -57,6 +57,7 @@
 | earthfile | ✓ | ✓ | ✓ |  |  | `earthlyls` |
 | edoc | ✓ |  |  |  |  |  |
 | eex | ✓ |  |  |  |  |  |
+| eiffel | ✓ | ✓ | ✓ |  |  | `eiffel-language-server` |
 | ejs | ✓ |  |  |  |  |  |
 | elisp | ✓ |  |  | ✓ |  |  |
 | elixir | ✓ | ✓ | ✓ | ✓ | ✓ | `elixir-ls`, `expert` |
@@ -140,6 +141,7 @@
 | jsx | ✓ | ✓ | ✓ | ✓ | ✓ | `typescript-language-server` |
 | julia | ✓ | ✓ | ✓ |  |  | `julia` |
 | just | ✓ | ✓ | ✓ | ✓ |  | `just-lsp` |
+| kcl | ✓ |  |  |  |  | `kcl-language-server` |
 | kconfig | ✓ |  | ✓ |  |  |  |
 | kdl | ✓ | ✓ | ✓ | ✓ |  |  |
 | koka | ✓ |  | ✓ |  |  | `koka` |
@@ -168,16 +170,18 @@
 | mermaid | ✓ |  |  |  |  |  |
 | meson | ✓ |  | ✓ |  |  | `mesonlsp` |
 | mint |  |  |  |  |  | `mint` |
+| miseconfig | ✓ | ✓ | ✓ |  |  | `taplo`, `tombi` |
 | mojo | ✓ | ✓ | ✓ |  |  | `pixi` |
 | move | ✓ |  |  |  |  |  |
 | msbuild | ✓ |  | ✓ |  |  |  |
 | nasm | ✓ | ✓ |  |  |  | `asm-lsp` |
+| nearley | ✓ |  |  |  | ✓ |  |
 | nestedtext | ✓ | ✓ | ✓ |  |  |  |
 | nginx | ✓ |  |  |  |  |  |
 | nickel | ✓ |  | ✓ |  |  | `nls` |
 | nim | ✓ | ✓ | ✓ |  |  | `nimlangserver` |
 | nix | ✓ | ✓ | ✓ |  | ✓ | `nil`, `nixd` |
-| nu | ✓ |  |  |  |  | `nu` |
+| nu | ✓ | ✓ | ✓ |  |  | `nu` |
 | nunjucks | ✓ |  |  |  |  |  |
 | ocaml | ✓ |  | ✓ |  |  | `ocamllsp` |
 | ocaml-interface | ✓ |  |  |  |  | `ocamllsp` |
