@@ -604,7 +604,7 @@ impl EditorView {
                     };
                 spans.push((selection_scope, range.anchor..selection_end));
                 // add block cursors
-                // skip primary cursor if terminal is unfocused - crossterm cursor is used in that case
+                // skip primary cursor if terminal is unfocused - terminal cursor is used in that case
                 if !selection_is_primary || (cursor_is_block && is_terminal_focused) {
                     spans.push((cursor_scope, cursor_start..range.head));
                 }
@@ -612,7 +612,7 @@ impl EditorView {
                 // Reverse case.
                 let cursor_end = next_grapheme_boundary(text, range.head);
                 // add block cursors
-                // skip primary cursor if terminal is unfocused - crossterm cursor is used in that case
+                // skip primary cursor if terminal is unfocused - terminal cursor is used in that case
                 if !selection_is_primary || (cursor_is_block && is_terminal_focused) {
                     spans.push((cursor_scope, range.head..cursor_end));
                 }
@@ -703,6 +703,31 @@ impl EditorView {
             };
 
             let icons = ICONS.load();
+
+            let lang = doc.language_name().unwrap_or(DEFAULT_LANGUAGE_NAME);
+
+            if let Some(icon) = icons
+                .fs()
+                .from_optional_path_or_lang(doc.path().map(|path| path.as_path()), lang)
+            {
+                let used_width = viewport.x.saturating_sub(x);
+                let rem_width = surface.area.width.saturating_sub(used_width);
+
+                let style = icon.color().map_or(style, |color| style.fg(color));
+
+                x = surface
+                    .set_stringn(x, viewport.y, format!(" {icon}"), rem_width as usize, style)
+                    .0;
+
+                if x >= surface.area.right() {
+                    break;
+                }
+            }
+
+            let text = format!(" {} {}", fname, if doc.is_modified() { "[+] " } else { "" });
+
+            let used_width = viewport.x.saturating_sub(x);
+            let rem_width = surface.area.width.saturating_sub(used_width);
 
             let lang = doc.language_name().unwrap_or(DEFAULT_LANGUAGE_NAME);
 
@@ -1293,6 +1318,8 @@ impl EditorView {
                 let editor = &mut cxt.editor;
 
                 if let Some((pos, view_id)) = pos_and_view(editor, row, column, true) {
+                    editor.focus(view_id);
+
                     let prev_view_id = view!(editor).id;
                     let doc = doc_mut!(editor, &view!(editor, view_id).doc);
 
@@ -1316,7 +1343,6 @@ impl EditorView {
                         self.clear_completion(editor);
                     }
 
-                    editor.focus(view_id);
                     editor.ensure_cursor_in_view(view_id);
 
                     return EventResult::Consumed(None);
@@ -1764,7 +1790,7 @@ impl Component for EditorView {
                 if self.terminal_focused {
                     (pos, CursorKind::Hidden)
                 } else {
-                    // use crossterm cursor when terminal loses focus
+                    // use terminal cursor when terminal loses focus
                     (pos, CursorKind::Underline)
                 }
             }

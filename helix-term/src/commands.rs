@@ -53,6 +53,7 @@ use helix_view::{
     editor::Action,
     icons::ICONS,
     expansion,
+    icons::ICONS,
     info::Info,
     input::KeyEvent,
     keyboard::KeyCode,

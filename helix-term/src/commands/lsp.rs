@@ -549,8 +549,9 @@ pub fn workspace_symbol_picker(cx: &mut Context) {
     };
     let columns = [
         ui::PickerColumn::new("kind", |item: &SymbolInformationItem, _| {
-            let icons = ICONS.load();
             let name = display_symbol_kind(item.symbol.kind);
+
+            let icons = ICONS.load();
 
             if let Some(icon) = icons.kind().get(name) {
                 icon.to_span_with(|icon| format!("{icon} {name}")).into()

@@ -10,10 +10,84 @@
 (block_comment) @comment.block
 (directive) @keyword.directive
 
+; variables
+
+((symbol) @variable.builtin
+  (#eq? @variable.builtin "..."))
+
+((symbol) @variable.builtin
+  (#eq? @variable.builtin "."))
+
+(symbol) @variable
+
+["(" ")" "[" "]" "{" "}"] @punctuation.bracket
+
+(quote "'") @operator
+(unquote_splicing ",@") @operator
+(unquote ",") @operator
+(quasiquote "`") @operator
+
+; procedure
+
+(list
+  .
+  (symbol) @function)
+
+; special forms
+
+(list
+  "["
+  (symbol)+ @variable
+  "]")
+
+(list
+  .
+  (symbol) @_f
+  .
+  (list
+    (symbol) @variable)
+  (#any-of? @_f "lambda" "λ"))
+
+(list
+  .
+  (symbol) @_f
+  (list
+    .
+    (list
+      (symbol) @variable))
+  (#eq? @_f "case-lambda"))
+
+(list
+  .
+  (symbol) @_f
+  .
+  (list
+    (list
+      (symbol) @variable.parameter))
+  (#any-of? @_f
+    "let" "let*" "let-syntax" "let-values" "let*-values" "letrec" "letrec*" "letrec-syntax" "do"))
+
 ; operators
 
 ((symbol) @operator
- (#match? @operator "^(\\+|-|\\*|/|=|>|<|>=|<=)$"))
+  (#match? @operator "^(\\+|-|\\*|/|=|>|<|>=|<=)$"))
+
+; library
+
+(list
+  .
+  (symbol) @_lib
+  .
+  (symbol) @namespace
+
+  (#eq? @_lib "library"))
+
+; quote
+
+(list
+  .
+  (symbol) @_f
+  (#eq? @_f "quote")) @string.symbol
 
 ; keywords
 
@@ -22,12 +96,12 @@
   ((symbol) @keyword.conditional
    (#match? @keyword.conditional "^(if|cond|case|when|unless)$"
   )))
- 
+
 (list
   .
   (symbol) @keyword
   (#match? @keyword
-   "^(define-syntax|let\\*|lambda|λ|case|=>|quote-splicing|unquote-splicing|set!|let|letrec|letrec-syntax|let-values|let\\*-values|do|else|define|cond|syntax-rules|unquote|begin|quote|let-syntax|and|if|quasiquote|letrec|delay|or|when|unless|identifier-syntax|assert|library|export|import|rename|only|except|prefix)$"
+   "^(define-syntax|let\\*|lambda|λ|case-lambda|case|=>|quote-splicing|unquote-splicing|set!|let|letrec|letrec-syntax|let-values|let\\*-values|do|else|define|cond|syntax-rules|unquote|begin|quote|let-syntax|and|if|quasiquote|letrec|delay|or|when|unless|identifier-syntax|assert|library|export|import|rename|only|except|prefix)$"
    ))
 
 (list
