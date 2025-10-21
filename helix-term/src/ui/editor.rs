@@ -680,11 +680,11 @@ impl EditorView {
 
         let current_doc = view!(editor).doc;
 
-        let mut sections: Vec<(usize, String, Style)> = Vec::new();
+        let mut sections: Vec<(u16, String, Style)> = Vec::new();
         let mut before_active_len: usize = 0;
         let mut active_len: usize = 0;
         let mut after_active_len: usize = 0;
-        let mut x: usize = 0;
+        let mut x: u16 = 0;
 
         for doc in editor.documents() {
             let fname = doc
@@ -739,7 +739,7 @@ impl EditorView {
                 let style = icon.color().map_or(style, |color| style.fg(color));
                 let text = format!(" {icon} ");
                 sections.push((x, text.clone(), style));
-                x += text.width();
+                x += text.width() as u16;
                 if is_active {
                     active_len += text.width();
                 } else {
@@ -759,7 +759,7 @@ impl EditorView {
                 if doc.is_modified() { "[+] " } else { "" }
             );
             sections.push((x, text.clone(), style));
-            x += text.width();
+            x += text.width() as u16;
             if is_active {
                 active_len += text.width();
             } else {
@@ -781,7 +781,7 @@ impl EditorView {
 
         let mut visual_x: u16 = 0;
         for (x, text, style) in sections {
-            if x + text.width() < starting_index {
+            if x + (text.width() as u16) < (starting_index as u16) {
                 continue;
             }
             visual_x = surface
@@ -789,7 +789,7 @@ impl EditorView {
                     visual_x,
                     viewport.y,
                     text.chars()
-                        .skip(starting_index.saturating_sub(x))
+                        .skip(starting_index.saturating_sub(x.into()))
                         .collect::<String>(),
                     // text[(starting_index.saturating_sub(x))..].to_string(),
                     surface.area.width as usize,

@@ -51,7 +51,6 @@ use helix_core::{
 use helix_view::{
     document::{FormatterError, Mode, SCRATCH_BUFFER_NAME},
     editor::Action,
-    icons::ICONS,
     expansion,
     icons::ICONS,
     info::Info,
