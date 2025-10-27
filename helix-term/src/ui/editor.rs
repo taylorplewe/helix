@@ -706,31 +706,6 @@ impl EditorView {
 
             let lang = doc.language_name().unwrap_or(DEFAULT_LANGUAGE_NAME);
 
-            if let Some(icon) = icons
-                .fs()
-                .from_optional_path_or_lang(doc.path().map(|path| path.as_path()), lang)
-            {
-                let used_width = viewport.x.saturating_sub(x);
-                let rem_width = surface.area.width.saturating_sub(used_width);
-
-                let style = icon.color().map_or(style, |color| style.fg(color));
-
-                x = surface
-                    .set_stringn(x, viewport.y, format!(" {icon}"), rem_width as usize, style)
-                    .0;
-
-                if x >= surface.area.right() {
-                    break;
-                }
-            }
-
-            let text = format!(" {} {}", fname, if doc.is_modified() { "[+] " } else { "" });
-
-            let used_width = viewport.x.saturating_sub(x);
-            let rem_width = surface.area.width.saturating_sub(used_width);
-
-            let lang = doc.language_name().unwrap_or(DEFAULT_LANGUAGE_NAME);
-
             let mut space = " ";
             if let Some(icon) = icons
                 .fs()
