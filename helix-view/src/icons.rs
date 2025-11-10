@@ -750,7 +750,7 @@ static MIMES: once_cell::sync::Lazy<HashMap<String, Icon>> = once_cell::sync::La
         "text" => { glyph: "" },
 
         // Exact
-        "README.md" => { glyph: "" },
+        "README.md" => { glyph: "󰂺" },
         "LICENSE" => { glyph: "󰗑", color: "#e7a933" },
         "LICENSE-MIT" => { glyph: "󰗑", color: "#e7a933" },
         "LICENSE-APACHE" => { glyph: "󰗑", color: "#e7a933" },
