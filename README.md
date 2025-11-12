@@ -6,6 +6,7 @@ This fork adds a collection of various other forks & small features to helix:
 - `:buffer-reopen` - ability to re-open recently closed buffers ([PR](https://github.com/helix-editor/helix/pull/13568))
 - keep active bufferline tab in view at all times
 - `:lang-config-open` - opens your `languages.toml` file, similar to `:config-open` for `config.toml`
+- smooth scrolling animation
 
 ---
 
