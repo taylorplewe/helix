@@ -20,6 +20,9 @@ use tui::{
 };
 pub use typed::*;
 
+use crate::job::dispatch;
+use tokio::time::{sleep, Duration};
+
 use helix_core::{
     char_idx_at_visual_offset,
     chars::char_is_word,
@@ -1828,10 +1831,10 @@ fn switch_to_lowercase(cx: &mut Context) {
     });
 }
 
-pub fn scroll(cx: &mut Context, offset: usize, direction: Direction, sync_cursor: bool) {
+fn scroll_editor(editor: &mut Editor, offset: usize, direction: Direction, sync_cursor: bool) {
     use Direction::*;
-    let config = cx.editor.config();
-    let (view, doc) = current!(cx.editor);
+    let config = editor.config();
+    let (view, doc) = current!(editor);
     let mut view_offset = doc.view_offset(view.id);
 
     let range = doc.selection(view.id).primary();
@@ -1864,7 +1867,7 @@ pub fn scroll(cx: &mut Context, offset: usize, direction: Direction, sync_cursor
     let mut annotations = view.text_annotations(&*doc, None);
 
     if sync_cursor {
-        let movement = match cx.editor.mode {
+        let movement = match editor.mode {
             Mode::Select => Movement::Extend,
             _ => Movement::Move,
         };
@@ -1923,7 +1926,7 @@ pub fn scroll(cx: &mut Context, offset: usize, direction: Direction, sync_cursor
         }
     }
 
-    let anchor = if cx.editor.mode == Mode::Select {
+    let anchor = if editor.mode == Mode::Select {
         range.anchor
     } else {
         head
@@ -1938,52 +1941,69 @@ pub fn scroll(cx: &mut Context, offset: usize, direction: Direction, sync_cursor
     doc.set_selection(view.id, sel);
 }
 
+pub fn scroll(cx: &mut Context, offset: usize, direction: Direction, sync_cursor: bool) {
+    scroll_editor(cx.editor, offset, direction, sync_cursor);
+}
+
+fn animated_scroll(cx: &mut Context, offset: usize, direction: Direction, sync_cursor: bool) {
+    let steps = 4;
+    let step_offset = offset / steps;
+    let duration = Duration::from_millis(1000 / 60);
+    cx.jobs.spawn(async move {
+        for _ in 0..steps {
+            sleep(duration).await;
+            dispatch(move |editor, _| scroll_editor(editor, step_offset, direction, sync_cursor)).await;
+        }
+        Ok(())
+    });
+}
+
 fn page_up(cx: &mut Context) {
     let view = view!(cx.editor);
     let offset = view.inner_height();
-    scroll(cx, offset, Direction::Backward, false);
+    animated_scroll(cx, offset, Direction::Backward, false);
 }
 
 fn page_down(cx: &mut Context) {
     let view = view!(cx.editor);
     let offset = view.inner_height();
-    scroll(cx, offset, Direction::Forward, false);
+    animated_scroll(cx, offset, Direction::Forward, false);
 }
 
 fn half_page_up(cx: &mut Context) {
     let view = view!(cx.editor);
     let offset = view.inner_height() / 2;
-    scroll(cx, offset, Direction::Backward, false);
+    animated_scroll(cx, offset, Direction::Backward, false);
 }
 
 fn half_page_down(cx: &mut Context) {
     let view = view!(cx.editor);
     let offset = view.inner_height() / 2;
-    scroll(cx, offset, Direction::Forward, false);
+    animated_scroll(cx, offset, Direction::Forward, false);
 }
 
 fn page_cursor_up(cx: &mut Context) {
     let view = view!(cx.editor);
     let offset = view.inner_height();
-    scroll(cx, offset, Direction::Backward, true);
+    animated_scroll(cx, offset, Direction::Backward, true);
 }
 
 fn page_cursor_down(cx: &mut Context) {
     let view = view!(cx.editor);
     let offset = view.inner_height();
-    scroll(cx, offset, Direction::Forward, true);
+    animated_scroll(cx, offset, Direction::Forward, true);
 }
 
 fn page_cursor_half_up(cx: &mut Context) {
     let view = view!(cx.editor);
     let offset = view.inner_height() / 2;
-    scroll(cx, offset, Direction::Backward, true);
+    animated_scroll(cx, offset, Direction::Backward, true);
 }
 
 fn page_cursor_half_down(cx: &mut Context) {
     let view = view!(cx.editor);
     let offset = view.inner_height() / 2;
-    scroll(cx, offset, Direction::Forward, true);
+    animated_scroll(cx, offset, Direction::Forward, true);
 }
 
 #[allow(deprecated)]
