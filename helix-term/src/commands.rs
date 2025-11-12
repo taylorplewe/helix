@@ -1946,13 +1946,16 @@ pub fn scroll(cx: &mut Context, offset: usize, direction: Direction, sync_cursor
 }
 
 fn animated_scroll(cx: &mut Context, offset: usize, direction: Direction, sync_cursor: bool) {
-    let steps = 4;
-    let step_offset = offset / steps;
+    let steps = 6;
     let duration = Duration::from_millis(1000 / 60);
+    let mut remaining_offset = offset;
     cx.jobs.spawn(async move {
-        for _ in 0..steps {
+        for step in 0..steps {
+            let step_offset: usize = remaining_offset / (steps - step);
+            remaining_offset = remaining_offset.saturating_sub(step_offset);
             sleep(duration).await;
-            dispatch(move |editor, _| scroll_editor(editor, step_offset, direction, sync_cursor)).await;
+            dispatch(move |editor, _| scroll_editor(editor, step_offset, direction, sync_cursor))
+                .await;
         }
         Ok(())
     });
