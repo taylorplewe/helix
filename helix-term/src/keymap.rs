@@ -6,7 +6,11 @@ use arc_swap::{
     access::{DynAccess, DynGuard},
     ArcSwap,
 };
-use helix_view::{document::Mode, info::Info, input::KeyEvent};
+use helix_view::{
+    document::Mode,
+    info::Info,
+    input::{KeyEvent, KeyEventKind},
+};
 use serde::Deserialize;
 use std::{
     borrow::Cow,
@@ -592,6 +596,7 @@ mod tests {
         let key = KeyEvent {
             code: KeyCode::Char('+'),
             modifiers: KeyModifiers::NONE,
+            kind: KeyEventKind::Press,
         };
 
         let expectation = KeyTrie::Node(KeyTrieNode::new(

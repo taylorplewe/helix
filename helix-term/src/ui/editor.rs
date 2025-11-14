@@ -28,7 +28,7 @@ use helix_view::{
     editor::{CompleteAction, CursorShapeConfig, InlineBlameConfig, InlineBlameShow},
     graphics::{Color, CursorKind, Modifier, Rect, Style},
     icons::ICONS,
-    input::{KeyEvent, MouseButton, MouseEvent, MouseEventKind},
+    input::{KeyEvent, KeyEventKind, MouseButton, MouseEvent, MouseEventKind},
     keyboard::{KeyCode, KeyModifiers},
     Document, Editor, Theme, View,
 };
@@ -1155,7 +1155,7 @@ impl EditorView {
                     self.on_next_key(OnKeyCallbackKind::Fallback, cxt, event);
                 }
                 if self.keymaps.pending().is_empty() {
-                    cxt.editor.count = None
+                    cxt.editor.count = cxt.editor.num_down;
                 } else {
                     cxt.editor.selected_register = cxt.register.take();
                 }
@@ -1242,6 +1242,7 @@ impl EditorView {
         let null_key_event = KeyEvent {
             code: KeyCode::Null,
             modifiers: KeyModifiers::empty(),
+            kind: KeyEventKind::Press,
         };
         // dismiss any pending keys
         if let Some((on_next_key, _)) = self.on_next_key.take() {
@@ -1529,11 +1530,46 @@ impl Component for EditorView {
                 EventResult::Consumed(None)
             }
             Event::Key(mut key) => {
-                cx.editor.reset_idle_timer();
-                canonicalize_key(&mut key);
+                if key.kind == KeyEventKind::Release {
+                    cx.editor.status_msg =
+                        Some(("releaseeee".into(), ::helix_view::editor::Severity::Info));
+                } else if key.kind == KeyEventKind::Press {
+                    cx.editor.status_msg =
+                        Some(("presss".into(), ::helix_view::editor::Severity::Info));
+                }
+                // keep track of pressed keys
+                match key.code {
+                    KeyCode::Char(c @ '1'..='9') => match key.kind {
+                        KeyEventKind::Press => {
+                            cx.editor.num_down = NonZeroUsize::new(c.to_digit(10).unwrap() as usize)
+                        }
+                        KeyEventKind::Release => cx.editor.num_down = None,
+                        _ => (),
+                    },
+                    _ => (),
+                }
+                // if let Some(num_down) = cx.editor.num_down {
+                //     cx.editor.status_msg = Some((
+                //         num_down.get().to_string().into(),
+                //         ::helix_view::editor::Severity::Info,
+                //     ));
+                // } else {
+                //     cx.editor.status_msg =
+                //         Some(("no nums down".into(), ::helix_view::editor::Severity::Info));
+                // }
+
+                // if let Some(cx.editor.num_down)
+                // cx.editor.status_msg = Some(cx.editor.num_down.get().to_string().into(), None);
 
                 // clear status
-                cx.editor.status_msg = None;
+                // cx.editor.status_msg = None;
+
+                if key.kind == KeyEventKind::Release {
+                    return EventResult::Ignored(None);
+                }
+
+                cx.editor.reset_idle_timer();
+                canonicalize_key(&mut key);
 
                 let mode = cx.editor.mode();
 
@@ -1778,6 +1814,7 @@ fn canonicalize_key(key: &mut KeyEvent) {
     if let KeyEvent {
         code: KeyCode::Char(_),
         modifiers: _,
+        kind: KeyEventKind::Press,
     } = key
     {
         key.modifiers.remove(KeyModifiers::SHIFT)

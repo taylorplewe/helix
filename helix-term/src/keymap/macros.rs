@@ -4,12 +4,14 @@ macro_rules! key {
         ::helix_view::input::KeyEvent {
             code: ::helix_view::keyboard::KeyCode::$key,
             modifiers: ::helix_view::keyboard::KeyModifiers::NONE,
+            kind: ::helix_view::keyboard::KeyEventKind::Press,
         }
     };
     ($($ch:tt)*) => {
         ::helix_view::input::KeyEvent {
             code: ::helix_view::keyboard::KeyCode::Char($($ch)*),
             modifiers: ::helix_view::keyboard::KeyModifiers::NONE,
+            kind: ::helix_view::keyboard::KeyEventKind::Press,
         }
     };
 }
@@ -20,12 +22,14 @@ macro_rules! shift {
         ::helix_view::input::KeyEvent {
             code: ::helix_view::keyboard::KeyCode::$key,
             modifiers: ::helix_view::keyboard::KeyModifiers::SHIFT,
+            kind: ::helix_view::keyboard::KeyEventKind::Press,
         }
     };
     ($($ch:tt)*) => {
         ::helix_view::input::KeyEvent {
             code: ::helix_view::keyboard::KeyCode::Char($($ch)*),
             modifiers: ::helix_view::keyboard::KeyModifiers::SHIFT,
+            kind: ::helix_view::keyboard::KeyEventKind::Press,
         }
     };
 }
@@ -36,12 +40,14 @@ macro_rules! ctrl {
         ::helix_view::input::KeyEvent {
             code: ::helix_view::keyboard::KeyCode::$key,
             modifiers: ::helix_view::keyboard::KeyModifiers::CONTROL,
+            kind: ::helix_view::keyboard::KeyEventKind::Press,
         }
     };
     ($($ch:tt)*) => {
         ::helix_view::input::KeyEvent {
             code: ::helix_view::keyboard::KeyCode::Char($($ch)*),
             modifiers: ::helix_view::keyboard::KeyModifiers::CONTROL,
+            kind: ::helix_view::keyboard::KeyEventKind::Press,
         }
     };
 }
@@ -52,12 +58,14 @@ macro_rules! alt {
         ::helix_view::input::KeyEvent {
             code: ::helix_view::keyboard::KeyCode::$key,
             modifiers: ::helix_view::keyboard::KeyModifiers::ALT,
+            kind: ::helix_view::keyboard::KeyEventKind::Press,
         }
     };
     ($($ch:tt)*) => {
         ::helix_view::input::KeyEvent {
             code: ::helix_view::keyboard::KeyCode::Char($($ch)*),
             modifiers: ::helix_view::keyboard::KeyModifiers::ALT,
+            kind: ::helix_view::keyboard::KeyEventKind::Press,
         }
     };
 }

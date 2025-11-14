@@ -418,6 +418,13 @@ pub enum KeyCode {
     Modifier(ModifierKeyCode),
 }
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
+pub enum KeyEventKind {
+    Press,
+    Repeat,
+    Release,
+}
+
 #[cfg(feature = "term")]
 impl From<KeyCode> for termina::event::KeyCode {
     fn from(key_code: KeyCode) -> Self {
@@ -560,6 +567,58 @@ impl From<crossterm::event::KeyCode> for KeyCode {
             CKeyCode::KeypadBegin => KeyCode::KeypadBegin,
             CKeyCode::Media(media_key_code) => KeyCode::Media(media_key_code.into()),
             CKeyCode::Modifier(modifier_key_code) => KeyCode::Modifier(modifier_key_code.into()),
+        }
+    }
+}
+
+#[cfg(all(feature = "term", windows))]
+impl From<crossterm::event::KeyEventKind> for KeyEventKind {
+    fn from(val: crossterm::event::KeyEventKind) -> Self {
+        use crossterm::event::KeyEventKind as CKeyEventKind;
+
+        match val {
+            CKeyEventKind::Press => KeyEventKind::Press,
+            CKeyEventKind::Repeat => KeyEventKind::Repeat,
+            CKeyEventKind::Release => KeyEventKind::Release,
+        }
+    }
+}
+
+#[cfg(all(feature = "term", windows))]
+impl From<KeyEventKind> for crossterm::event::KeyEventKind {
+    fn from(val: KeyEventKind) -> Self {
+        use crossterm::event::KeyEventKind as CKeyEventKind;
+
+        match val {
+            KeyEventKind::Press => CKeyEventKind::Press,
+            KeyEventKind::Repeat => CKeyEventKind::Repeat,
+            KeyEventKind::Release => CKeyEventKind::Release,
+        }
+    }
+}
+
+#[cfg(all(feature = "term", windows))]
+impl From<termina::event::KeyEventKind> for KeyEventKind {
+    fn from(val: termina::event::KeyEventKind) -> Self {
+        use termina::event::KeyEventKind as CKeyEventKind;
+
+        match val {
+            CKeyEventKind::Press => KeyEventKind::Press,
+            CKeyEventKind::Repeat => KeyEventKind::Repeat,
+            CKeyEventKind::Release => KeyEventKind::Release,
+        }
+    }
+}
+
+#[cfg(all(feature = "term", windows))]
+impl From<KeyEventKind> for termina::event::KeyEventKind {
+    fn from(val: KeyEventKind) -> Self {
+        use termina::event::KeyEventKind as CKeyEventKind;
+
+        match val {
+            KeyEventKind::Press => CKeyEventKind::Press,
+            KeyEventKind::Repeat => CKeyEventKind::Repeat,
+            KeyEventKind::Release => CKeyEventKind::Release,
         }
     }
 }

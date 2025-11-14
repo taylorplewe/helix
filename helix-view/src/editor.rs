@@ -1172,6 +1172,7 @@ pub struct Editor {
     pub write_count: usize,
 
     pub count: Option<std::num::NonZeroUsize>,
+    pub num_down: Option<std::num::NonZeroUsize>,
     pub selected_register: Option<char>,
     pub registers: Registers,
     pub macro_recording: Option<(char, Vec<KeyEvent>)>,
@@ -1319,6 +1320,7 @@ impl Editor {
             save_queue: SelectAll::new(),
             write_count: 0,
             count: None,
+            num_down: None,
             selected_register: None,
             macro_recording: None,
             macro_replaying: Vec::new(),

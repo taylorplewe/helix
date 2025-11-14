@@ -3,7 +3,7 @@ use crate::{alt, ctrl, key, shift, ui};
 use arc_swap::ArcSwap;
 use helix_core::syntax;
 use helix_view::document::Mode;
-use helix_view::input::KeyEvent;
+use helix_view::input::{KeyEvent, KeyEventKind};
 use helix_view::keyboard::KeyCode;
 use std::sync::Arc;
 use std::{borrow::Cow, ops::RangeFrom};
@@ -747,6 +747,7 @@ impl Component for Prompt {
             KeyEvent {
                 code: KeyCode::Char(c),
                 modifiers: _,
+                kind: KeyEventKind::Press,
             } => {
                 self.insert_char(c, cx);
                 (self.callback_fn)(cx, &self.line, PromptEvent::Update);

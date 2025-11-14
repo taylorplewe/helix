@@ -4,7 +4,7 @@ use helix_core::unicode::{segmentation::UnicodeSegmentation, width::UnicodeWidth
 use serde::de::{self, Deserialize, Deserializer};
 use std::fmt;
 
-pub use crate::keyboard::{KeyCode, KeyModifiers, MediaKeyCode, ModifierKeyCode};
+pub use crate::keyboard::{KeyCode, KeyEventKind, KeyModifiers, MediaKeyCode, ModifierKeyCode};
 
 #[derive(Debug, PartialOrd, PartialEq, Eq, Clone, Hash)]
 pub enum Event {
@@ -65,7 +65,7 @@ pub enum MouseButton {
 pub struct KeyEvent {
     pub code: KeyCode,
     pub modifiers: KeyModifiers,
-    // TODO: termina now supports kind & state if terminal supports kitty's extended protocol
+    pub kind: KeyEventKind, // TODO: termina now supports kind & state if terminal supports kitty's extended protocol
 }
 
 impl KeyEvent {
@@ -404,6 +404,7 @@ impl std::str::FromStr for KeyEvent {
                     return Ok(KeyEvent {
                         code: KeyCode::Char('-'),
                         modifiers: KeyModifiers::empty(),
+                        kind: KeyEventKind::Press,
                     });
                 } else {
                     let suggestion = format!("{}-{}", s.trim_end_matches('-'), keys::MINUS);
@@ -444,7 +445,11 @@ impl std::str::FromStr for KeyEvent {
             _ => (),
         }
 
-        Ok(KeyEvent { code, modifiers })
+        Ok(KeyEvent {
+            code,
+            modifiers,
+            kind: KeyEventKind::Press,
+        })
     }
 }
 
@@ -525,7 +530,10 @@ impl From<termina::event::MouseButton> for MouseButton {
 impl From<termina::event::KeyEvent> for KeyEvent {
     fn from(
         termina::event::KeyEvent {
-            code, modifiers, ..
+            code,
+            modifiers,
+            kind,
+            ..
         }: termina::event::KeyEvent,
     ) -> Self {
         if code == termina::event::KeyCode::BackTab {
@@ -535,11 +543,13 @@ impl From<termina::event::KeyEvent> for KeyEvent {
             Self {
                 code: KeyCode::Tab,
                 modifiers,
+                kind: kind.into(),
             }
         } else {
             Self {
                 code: code.into(),
                 modifiers: modifiers.into(),
+                kind: kind.into(),
             }
         }
     }
@@ -547,7 +557,13 @@ impl From<termina::event::KeyEvent> for KeyEvent {
 
 #[cfg(feature = "term")]
 impl From<KeyEvent> for termina::event::KeyEvent {
-    fn from(KeyEvent { code, modifiers }: KeyEvent) -> Self {
+    fn from(
+        KeyEvent {
+            code,
+            modifiers,
+            kind,
+        }: KeyEvent,
+    ) -> Self {
         if code == KeyCode::Tab && modifiers.contains(KeyModifiers::SHIFT) {
             // special case for Shift-Tab -> BackTab
             let mut modifiers = modifiers;
@@ -555,14 +571,14 @@ impl From<KeyEvent> for termina::event::KeyEvent {
             termina::event::KeyEvent {
                 code: termina::event::KeyCode::BackTab,
                 modifiers: modifiers.into(),
-                kind: termina::event::KeyEventKind::Press,
+                kind: kind.into(),
                 state: termina::event::KeyEventState::NONE,
             }
         } else {
             termina::event::KeyEvent {
                 code: code.into(),
                 modifiers: modifiers.into(),
-                kind: termina::event::KeyEventKind::Press,
+                kind: kind.into(),
                 state: termina::event::KeyEventState::NONE,
             }
         }
@@ -633,7 +649,10 @@ impl From<crossterm::event::MouseButton> for MouseButton {
 impl From<crossterm::event::KeyEvent> for KeyEvent {
     fn from(
         crossterm::event::KeyEvent {
-            code, modifiers, ..
+            code,
+            modifiers,
+            kind,
+            ..
         }: crossterm::event::KeyEvent,
     ) -> Self {
         if code == crossterm::event::KeyCode::BackTab {
@@ -643,11 +662,13 @@ impl From<crossterm::event::KeyEvent> for KeyEvent {
             Self {
                 code: KeyCode::Tab,
                 modifiers,
+                kind: kind.into(),
             }
         } else {
             Self {
                 code: code.into(),
                 modifiers: modifiers.into(),
+                kind: kind.into(),
             }
         }
     }
@@ -655,7 +676,13 @@ impl From<crossterm::event::KeyEvent> for KeyEvent {
 
 #[cfg(all(feature = "term", windows))]
 impl From<KeyEvent> for crossterm::event::KeyEvent {
-    fn from(KeyEvent { code, modifiers }: KeyEvent) -> Self {
+    fn from(
+        KeyEvent {
+            code,
+            modifiers,
+            kind,
+        }: KeyEvent,
+    ) -> Self {
         if code == KeyCode::Tab && modifiers.contains(KeyModifiers::SHIFT) {
             // special case for Shift-Tab -> BackTab
             let mut modifiers = modifiers;
@@ -663,14 +690,14 @@ impl From<KeyEvent> for crossterm::event::KeyEvent {
             crossterm::event::KeyEvent {
                 code: crossterm::event::KeyCode::BackTab,
                 modifiers: modifiers.into(),
-                kind: crossterm::event::KeyEventKind::Press,
+                kind: kind.into(),
                 state: crossterm::event::KeyEventState::NONE,
             }
         } else {
             crossterm::event::KeyEvent {
                 code: code.into(),
                 modifiers: modifiers.into(),
-                kind: crossterm::event::KeyEventKind::Press,
+                kind: kind.into(),
                 state: crossterm::event::KeyEventState::NONE,
             }
         }
@@ -723,7 +750,8 @@ mod test {
             str::parse::<KeyEvent>("backspace").unwrap(),
             KeyEvent {
                 code: KeyCode::Backspace,
-                modifiers: KeyModifiers::NONE
+                modifiers: KeyModifiers::NONE,
+                kind: KeyEventKind::Press,
             }
         );
 
@@ -731,7 +759,8 @@ mod test {
             str::parse::<KeyEvent>("left").unwrap(),
             KeyEvent {
                 code: KeyCode::Left,
-                modifiers: KeyModifiers::NONE
+                modifiers: KeyModifiers::NONE,
+                kind: KeyEventKind::Press,
             }
         );
 
@@ -739,7 +768,8 @@ mod test {
             str::parse::<KeyEvent>(",").unwrap(),
             KeyEvent {
                 code: KeyCode::Char(','),
-                modifiers: KeyModifiers::NONE
+                modifiers: KeyModifiers::NONE,
+                kind: KeyEventKind::Press,
             }
         );
 
@@ -747,7 +777,8 @@ mod test {
             str::parse::<KeyEvent>("w").unwrap(),
             KeyEvent {
                 code: KeyCode::Char('w'),
-                modifiers: KeyModifiers::NONE
+                modifiers: KeyModifiers::NONE,
+                kind: KeyEventKind::Press,
             }
         );
 
@@ -755,7 +786,8 @@ mod test {
             str::parse::<KeyEvent>("F12").unwrap(),
             KeyEvent {
                 code: KeyCode::F(12),
-                modifiers: KeyModifiers::NONE
+                modifiers: KeyModifiers::NONE,
+                kind: KeyEventKind::Press,
             }
         );
 
@@ -763,7 +795,8 @@ mod test {
             str::parse::<KeyEvent>("%").unwrap(),
             KeyEvent {
                 code: KeyCode::Char('%'),
-                modifiers: KeyModifiers::NONE
+                modifiers: KeyModifiers::NONE,
+                kind: KeyEventKind::Press,
             }
         );
 
@@ -771,7 +804,8 @@ mod test {
             str::parse::<KeyEvent>(";").unwrap(),
             KeyEvent {
                 code: KeyCode::Char(';'),
-                modifiers: KeyModifiers::NONE
+                modifiers: KeyModifiers::NONE,
+                kind: KeyEventKind::Press,
             }
         );
 
@@ -779,7 +813,8 @@ mod test {
             str::parse::<KeyEvent>(">").unwrap(),
             KeyEvent {
                 code: KeyCode::Char('>'),
-                modifiers: KeyModifiers::NONE
+                modifiers: KeyModifiers::NONE,
+                kind: KeyEventKind::Press,
             }
         );
 
@@ -787,7 +822,8 @@ mod test {
             str::parse::<KeyEvent>("<").unwrap(),
             KeyEvent {
                 code: KeyCode::Char('<'),
-                modifiers: KeyModifiers::NONE
+                modifiers: KeyModifiers::NONE,
+                kind: KeyEventKind::Press,
             }
         );
 
@@ -795,7 +831,8 @@ mod test {
             str::parse::<KeyEvent>("+").unwrap(),
             KeyEvent {
                 code: KeyCode::Char('+'),
-                modifiers: KeyModifiers::NONE
+                modifiers: KeyModifiers::NONE,
+                kind: KeyEventKind::Press,
             }
         );
         assert_eq!(
@@ -803,6 +840,7 @@ mod test {
             KeyEvent {
                 code: KeyCode::Char('-'),
                 modifiers: KeyModifiers::NONE,
+                kind: KeyEventKind::Press,
             }
         );
     }
@@ -813,7 +851,8 @@ mod test {
             str::parse::<KeyEvent>("S-minus").unwrap(),
             KeyEvent {
                 code: KeyCode::Char('-'),
-                modifiers: KeyModifiers::SHIFT
+                modifiers: KeyModifiers::SHIFT,
+                kind: KeyEventKind::Press,
             }
         );
 
@@ -821,7 +860,8 @@ mod test {
             str::parse::<KeyEvent>("C-A-S-F12").unwrap(),
             KeyEvent {
                 code: KeyCode::F(12),
-                modifiers: KeyModifiers::SHIFT | KeyModifiers::CONTROL | KeyModifiers::ALT
+                modifiers: KeyModifiers::SHIFT | KeyModifiers::CONTROL | KeyModifiers::ALT,
+                kind: KeyEventKind::Press,
             }
         );
 
@@ -829,7 +869,8 @@ mod test {
             str::parse::<KeyEvent>("S-C-2").unwrap(),
             KeyEvent {
                 code: KeyCode::Char('2'),
-                modifiers: KeyModifiers::SHIFT | KeyModifiers::CONTROL
+                modifiers: KeyModifiers::SHIFT | KeyModifiers::CONTROL,
+                kind: KeyEventKind::Press,
             }
         );
 
@@ -837,7 +878,8 @@ mod test {
             str::parse::<KeyEvent>("A-C-+").unwrap(),
             KeyEvent {
                 code: KeyCode::Char('+'),
-                modifiers: KeyModifiers::ALT | KeyModifiers::CONTROL
+                modifiers: KeyModifiers::ALT | KeyModifiers::CONTROL,
+                kind: KeyEventKind::Press,
             }
         );
 
@@ -850,7 +892,8 @@ mod test {
             str::parse::<KeyEvent>("S-w").unwrap(),
             KeyEvent {
                 code: KeyCode::Char('W'),
-                modifiers: KeyModifiers::NONE
+                modifiers: KeyModifiers::NONE,
+                kind: KeyEventKind::Press,
             }
         );
 
@@ -858,21 +901,24 @@ mod test {
             str::parse::<KeyEvent>("Meta-c").unwrap(),
             KeyEvent {
                 code: KeyCode::Char('c'),
-                modifiers: KeyModifiers::SUPER
+                modifiers: KeyModifiers::SUPER,
+                kind: KeyEventKind::Press,
             }
         );
         assert_eq!(
             str::parse::<KeyEvent>("Win-s").unwrap(),
             KeyEvent {
                 code: KeyCode::Char('s'),
-                modifiers: KeyModifiers::SUPER
+                modifiers: KeyModifiers::SUPER,
+                kind: KeyEventKind::Press,
             }
         );
         assert_eq!(
             str::parse::<KeyEvent>("Cmd-d").unwrap(),
             KeyEvent {
                 code: KeyCode::Char('d'),
-                modifiers: KeyModifiers::SUPER
+                modifiers: KeyModifiers::SUPER,
+                kind: KeyEventKind::Press,
             }
         );
     }
@@ -906,14 +952,17 @@ mod test {
                 KeyEvent {
                     code: KeyCode::Char('x'),
                     modifiers: KeyModifiers::NONE,
+                    kind: KeyEventKind::Press,
                 },
                 KeyEvent {
                     code: KeyCode::Char('d'),
                     modifiers: KeyModifiers::NONE,
+                    kind: KeyEventKind::Press,
                 },
                 KeyEvent {
                     code: KeyCode::Char('o'),
                     modifiers: KeyModifiers::NONE,
+                    kind: KeyEventKind::Press,
                 },
             ]),
         );
@@ -924,34 +973,42 @@ mod test {
                 KeyEvent {
                     code: KeyCode::Char('w'),
                     modifiers: KeyModifiers::CONTROL,
+                    kind: KeyEventKind::Press,
                 },
                 KeyEvent {
                     code: KeyCode::Char('v'),
                     modifiers: KeyModifiers::NONE,
+                    kind: KeyEventKind::Press,
                 },
                 KeyEvent {
                     code: KeyCode::Char('w'),
                     modifiers: KeyModifiers::CONTROL,
+                    kind: KeyEventKind::Press,
                 },
                 KeyEvent {
                     code: KeyCode::Char('h'),
                     modifiers: KeyModifiers::NONE,
+                    kind: KeyEventKind::Press,
                 },
                 KeyEvent {
                     code: KeyCode::Char('o'),
                     modifiers: KeyModifiers::CONTROL,
+                    kind: KeyEventKind::Press,
                 },
                 KeyEvent {
                     code: KeyCode::Char('x'),
                     modifiers: KeyModifiers::NONE,
+                    kind: KeyEventKind::Press,
                 },
                 KeyEvent {
                     code: KeyCode::Char('x'),
                     modifiers: KeyModifiers::NONE,
+                    kind: KeyEventKind::Press,
                 },
                 KeyEvent {
                     code: KeyCode::Char('s'),
                     modifiers: KeyModifiers::ALT,
+                    kind: KeyEventKind::Press,
                 },
             ])
         );
@@ -962,46 +1019,57 @@ mod test {
                 KeyEvent {
                     code: KeyCode::Char(':'),
                     modifiers: KeyModifiers::NONE,
+                    kind: KeyEventKind::Press,
                 },
                 KeyEvent {
                     code: KeyCode::Char('o'),
                     modifiers: KeyModifiers::NONE,
+                    kind: KeyEventKind::Press,
                 },
                 KeyEvent {
                     code: KeyCode::Char(' '),
                     modifiers: KeyModifiers::NONE,
+                    kind: KeyEventKind::Press,
                 },
                 KeyEvent {
                     code: KeyCode::Char('f'),
                     modifiers: KeyModifiers::NONE,
+                    kind: KeyEventKind::Press,
                 },
                 KeyEvent {
                     code: KeyCode::Char('o'),
                     modifiers: KeyModifiers::NONE,
+                    kind: KeyEventKind::Press,
                 },
                 KeyEvent {
                     code: KeyCode::Char('o'),
                     modifiers: KeyModifiers::NONE,
+                    kind: KeyEventKind::Press,
                 },
                 KeyEvent {
                     code: KeyCode::Char('.'),
                     modifiers: KeyModifiers::NONE,
+                    kind: KeyEventKind::Press,
                 },
                 KeyEvent {
                     code: KeyCode::Char('b'),
                     modifiers: KeyModifiers::NONE,
+                    kind: KeyEventKind::Press,
                 },
                 KeyEvent {
                     code: KeyCode::Char('a'),
                     modifiers: KeyModifiers::NONE,
+                    kind: KeyEventKind::Press,
                 },
                 KeyEvent {
                     code: KeyCode::Char('r'),
                     modifiers: KeyModifiers::NONE,
+                    kind: KeyEventKind::Press,
                 },
                 KeyEvent {
                     code: KeyCode::Enter,
                     modifiers: KeyModifiers::NONE,
+                    kind: KeyEventKind::Press,
                 },
             ])
         );
@@ -1012,54 +1080,67 @@ mod test {
                 KeyEvent {
                     code: KeyCode::Char(':'),
                     modifiers: KeyModifiers::NONE,
+                    kind: KeyEventKind::Press,
                 },
                 KeyEvent {
                     code: KeyCode::Char('w'),
                     modifiers: KeyModifiers::NONE,
+                    kind: KeyEventKind::Press,
                 },
                 KeyEvent {
                     code: KeyCode::Char(' '),
                     modifiers: KeyModifiers::NONE,
+                    kind: KeyEventKind::Press,
                 },
                 KeyEvent {
                     code: KeyCode::Char('a'),
                     modifiers: KeyModifiers::NONE,
+                    kind: KeyEventKind::Press,
                 },
                 KeyEvent {
                     code: KeyCode::Char('a'),
                     modifiers: KeyModifiers::NONE,
+                    kind: KeyEventKind::Press,
                 },
                 KeyEvent {
                     code: KeyCode::Char('-'),
                     modifiers: KeyModifiers::NONE,
+                    kind: KeyEventKind::Press,
                 },
                 KeyEvent {
                     code: KeyCode::Char('b'),
                     modifiers: KeyModifiers::NONE,
+                    kind: KeyEventKind::Press,
                 },
                 KeyEvent {
                     code: KeyCode::Char('b'),
                     modifiers: KeyModifiers::NONE,
+                    kind: KeyEventKind::Press,
                 },
                 KeyEvent {
                     code: KeyCode::Char('.'),
                     modifiers: KeyModifiers::NONE,
+                    kind: KeyEventKind::Press,
                 },
                 KeyEvent {
                     code: KeyCode::Char('t'),
                     modifiers: KeyModifiers::NONE,
+                    kind: KeyEventKind::Press,
                 },
                 KeyEvent {
                     code: KeyCode::Char('x'),
                     modifiers: KeyModifiers::NONE,
+                    kind: KeyEventKind::Press,
                 },
                 KeyEvent {
                     code: KeyCode::Char('t'),
                     modifiers: KeyModifiers::NONE,
+                    kind: KeyEventKind::Press,
                 },
                 KeyEvent {
                     code: KeyCode::Enter,
                     modifiers: KeyModifiers::NONE,
+                    kind: KeyEventKind::Press,
                 },
             ])
         );
