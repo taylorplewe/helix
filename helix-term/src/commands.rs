@@ -1853,40 +1853,30 @@ pub fn scroll(
         Backward => -(offset as isize),
     };
 
-    let annotations = view.text_annotations(&*doc, None);
     let doc_text = doc.text().slice(..);
     let viewport = view.inner_area(doc);
     let text_fmt = doc.text_format(viewport.width, None);
-    let curr_pos = visual_offset_from_block(
-        doc_text,
-        view_offset.anchor,
-        doc.selection(view.id).primary().head,
-        &text_fmt,
-        &annotations,
-    )
-    .0;
-    let (row_offset, column) = if is_vertical {
-        (view_offset.vertical_offset as isize + offset, 0 as usize)
+    if is_vertical {
+        (view_offset.anchor, view_offset.vertical_offset) = char_idx_at_visual_offset(
+            doc_text,
+            view_offset.anchor,
+            view_offset.vertical_offset as isize + offset,
+            0,
+            &text_fmt,
+            &view.text_annotations(&*doc, None),
+        );
     } else {
-        (
-            view_offset.vertical_offset as isize,
-            if offset > 0 {
-                curr_pos.col + offset.abs() as usize
-            } else {
-                curr_pos.col - offset.abs() as usize
-            },
-        )
-    };
-    (view_offset.anchor, view_offset.vertical_offset) = char_idx_at_visual_offset(
-        doc_text,
-        view_offset.anchor,
-        row_offset,
-        column,
-        &text_fmt,
-        // &annotations,
-        &view.text_annotations(&*doc, None),
-    );
-    drop(annotations);
+        if text_fmt.soft_wrap {
+            return;
+        }
+        if offset > 0 {
+            view_offset.horizontal_offset += offset.unsigned_abs();
+        } else {
+            view_offset.horizontal_offset = view_offset
+                .horizontal_offset
+                .saturating_sub(offset.abs() as usize);
+        }
+    }
     doc.set_view_offset(view.id, view_offset);
 
     let doc_text = doc.text().slice(..);
@@ -1931,6 +1921,15 @@ pub fn scroll(
 
     let view_offset = doc.view_offset(view.id);
 
+    let curr_pos = visual_offset_from_block(
+        doc_text,
+        view_offset.anchor,
+        doc.selection(view.id).primary().head,
+        &text_fmt,
+        &annotations,
+    )
+    .0;
+
     let mut head;
     match direction {
         Forward => {
@@ -1938,8 +1937,8 @@ pub fn scroll(
                 ((view_offset.vertical_offset + scrolloff) as isize, 0)
             } else {
                 (
-                    view_offset.vertical_offset as isize,
-                    curr_pos.col + scrolloff,
+                    curr_pos.row as isize,
+                    view_offset.horizontal_offset + scrolloff,
                 )
             };
             let off;
@@ -1964,8 +1963,8 @@ pub fn scroll(
                 )
             } else {
                 (
-                    view_offset.vertical_offset as isize,
-                    curr_pos.col.saturating_sub(scrolloff),
+                    curr_pos.row as isize,
+                    (((view_offset.horizontal_offset) + width) - scrolloff) - 1,
                 )
             };
             head = char_idx_at_visual_offset(
