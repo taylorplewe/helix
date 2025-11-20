@@ -5,6 +5,7 @@ use serde::de::{self, Deserialize, Deserializer};
 use std::fmt;
 
 pub use crate::keyboard::{KeyCode, KeyModifiers, MediaKeyCode, ModifierKeyCode};
+use crate::ViewId;
 
 #[derive(Debug, PartialOrd, PartialEq, Eq, Clone, Hash)]
 pub enum Event {
@@ -59,6 +60,66 @@ pub enum MouseButton {
     /// Middle mouse button.
     Middle,
 }
+
+/// Tracks the character positions and views where we last saw a mouse click
+#[derive(Debug)]
+pub struct MouseClicks {
+    clicks: [Option<(usize, ViewId)>; 2],
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum MouseClick {
+    Single,
+    Double,
+    Triple,
+}
+
+impl MouseClicks {
+    pub fn new() -> Self {
+        Self {
+            clicks: [None, None],
+        }
+    }
+
+    fn insert(&mut self, click: usize, view_id: ViewId) {
+        self.clicks[1] = self.clicks[0];
+        self.clicks[0] = Some((click, view_id));
+    }
+
+    pub fn register_click(&mut self, click: usize, view_id: ViewId) -> MouseClick {
+        let click_type = if self.is_triple_click(click, view_id) {
+            self.clicks = [None, None];
+
+            return MouseClick::Triple;
+        } else if self.is_double_click(click, view_id) {
+            MouseClick::Double
+        } else {
+            MouseClick::Single
+        };
+
+        self.insert(click, view_id);
+
+        click_type
+    }
+
+    fn is_triple_click(&mut self, click: usize, view_id: ViewId) -> bool {
+        Some((click, view_id)) == self.clicks[0] && Some((click, view_id)) == self.clicks[1]
+    }
+
+    fn is_double_click(&mut self, click: usize, view_id: ViewId) -> bool {
+        Some((click, view_id)) == self.clicks[0]
+            && self.clicks[1].map_or(true, |(prev_click, prev_view_id)| {
+                !(click == prev_click && prev_view_id == view_id)
+            })
+    }
+}
+
+impl Default for MouseClicks {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Represents a key event.
 // We use a newtype here because we want to customize Deserialize and Display.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
