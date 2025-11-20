@@ -570,6 +570,8 @@ impl MappableCommand {
         align_view_bottom, "Align view bottom",
         scroll_up, "Scroll view up",
         scroll_down, "Scroll view down",
+        scroll_left, "Scroll view left",
+        scroll_right, "Scroll view right",
         match_brackets, "Goto matching bracket",
         surround_add, "Surround add",
         surround_replace, "Surround replace",
@@ -1206,6 +1208,14 @@ where
 
 fn move_next_word_start(cx: &mut Context) {
     move_word_impl(cx, movement::move_next_word_start)
+    // let (view, doc) = current!(cx.editor);
+    // let range = doc.selection(view.id).primary();
+    // if range.anchor == range.head {
+    //     move_prev_word_start(cx);
+    //     move_next_word_end(cx);
+    // } else {
+    //     move_word_impl(cx, movement::move_next_word_start)
+    // }
 }
 
 fn move_prev_word_start(cx: &mut Context) {
@@ -1831,7 +1841,13 @@ fn switch_to_lowercase(cx: &mut Context) {
     });
 }
 
-fn scroll_editor(editor: &mut Editor, offset: usize, direction: Direction, sync_cursor: bool) {
+pub fn scroll_editor(
+    editor: &mut Editor,
+    offset: usize,
+    direction: Direction,
+    is_vertical: bool,
+    sync_cursor: bool,
+) {
     use Direction::*;
     let config = editor.config();
     let (view, doc) = current!(editor);
@@ -1841,9 +1857,16 @@ fn scroll_editor(editor: &mut Editor, offset: usize, direction: Direction, sync_
     let text = doc.text().slice(..);
 
     let cursor = range.cursor(text);
+    let width = view.inner_width(doc) as usize;
     let height = view.inner_height();
 
-    let scrolloff = config.scrolloff.min(height.saturating_sub(1) / 2);
+    let scrolloff = config.scrolloff.min(
+        (if is_vertical {
+            height.saturating_sub(1)
+        } else {
+            width.saturating_sub(1)
+        }) / 2,
+    );
     let offset = match direction {
         Forward => offset as isize,
         Backward => -(offset as isize),
@@ -1852,21 +1875,34 @@ fn scroll_editor(editor: &mut Editor, offset: usize, direction: Direction, sync_
     let doc_text = doc.text().slice(..);
     let viewport = view.inner_area(doc);
     let text_fmt = doc.text_format(viewport.width, None);
-    (view_offset.anchor, view_offset.vertical_offset) = char_idx_at_visual_offset(
-        doc_text,
-        view_offset.anchor,
-        view_offset.vertical_offset as isize + offset,
-        0,
-        &text_fmt,
-        // &annotations,
-        &view.text_annotations(&*doc, None),
-    );
+    if is_vertical {
+        (view_offset.anchor, view_offset.vertical_offset) = char_idx_at_visual_offset(
+            doc_text,
+            view_offset.anchor,
+            view_offset.vertical_offset as isize + offset,
+            0,
+            &text_fmt,
+            &view.text_annotations(&*doc, None),
+        );
+    } else {
+        if text_fmt.soft_wrap {
+            return;
+        }
+        if offset > 0 {
+            view_offset.horizontal_offset += offset.unsigned_abs();
+        } else {
+            view_offset.horizontal_offset = view_offset
+                .horizontal_offset
+                .saturating_sub(offset.abs() as usize);
+        }
+    }
     doc.set_view_offset(view.id, view_offset);
 
     let doc_text = doc.text().slice(..);
     let mut annotations = view.text_annotations(&*doc, None);
 
     if sync_cursor {
+        assert!(is_vertical == true);
         let movement = match editor.mode {
             Mode::Select => Movement::Extend,
             _ => Movement::Move,
@@ -1893,15 +1929,32 @@ fn scroll_editor(editor: &mut Editor, offset: usize, direction: Direction, sync_
 
     let view_offset = doc.view_offset(view.id);
 
+    let curr_pos = visual_offset_from_block(
+        doc_text,
+        view_offset.anchor,
+        doc.selection(view.id).primary().head,
+        &text_fmt,
+        &annotations,
+    )
+    .0;
+
     let mut head;
     match direction {
         Forward => {
+            let (row_offset, column) = if is_vertical {
+                ((view_offset.vertical_offset + scrolloff) as isize, 0)
+            } else {
+                (
+                    curr_pos.row as isize,
+                    view_offset.horizontal_offset + scrolloff,
+                )
+            };
             let off;
             (head, off) = char_idx_at_visual_offset(
                 doc_text,
                 view_offset.anchor,
-                (view_offset.vertical_offset + scrolloff) as isize,
-                0,
+                row_offset,
+                column,
                 &text_fmt,
                 &annotations,
             );
@@ -1911,11 +1964,22 @@ fn scroll_editor(editor: &mut Editor, offset: usize, direction: Direction, sync_
             }
         }
         Backward => {
+            let (row_offset, column) = if is_vertical {
+                (
+                    (view_offset.vertical_offset + height - scrolloff - 1) as isize,
+                    0,
+                )
+            } else {
+                (
+                    curr_pos.row as isize,
+                    (((view_offset.horizontal_offset) + width) - scrolloff) - 1,
+                )
+            };
             head = char_idx_at_visual_offset(
                 doc_text,
                 view_offset.anchor,
-                (view_offset.vertical_offset + height - scrolloff - 1) as isize,
-                0,
+                row_offset,
+                column,
                 &text_fmt,
                 &annotations,
             )
@@ -1941,8 +2005,14 @@ fn scroll_editor(editor: &mut Editor, offset: usize, direction: Direction, sync_
     doc.set_selection(view.id, sel);
 }
 
-pub fn scroll(cx: &mut Context, offset: usize, direction: Direction, sync_cursor: bool) {
-    scroll_editor(cx.editor, offset, direction, sync_cursor);
+pub fn scroll(
+    cx: &mut Context,
+    offset: usize,
+    direction: Direction,
+    is_vertical: bool,
+    sync_cursor: bool,
+) {
+    scroll_editor(cx.editor, offset, direction, is_vertical, sync_cursor);
 }
 
 fn animated_scroll(cx: &mut Context, offset: usize, direction: Direction, sync_cursor: bool) {
@@ -1954,8 +2024,10 @@ fn animated_scroll(cx: &mut Context, offset: usize, direction: Direction, sync_c
             let step_offset: usize = remaining_offset / (steps - step);
             remaining_offset = remaining_offset.saturating_sub(step_offset);
             sleep(duration).await;
-            dispatch(move |editor, _| scroll_editor(editor, step_offset, direction, sync_cursor))
-                .await;
+            dispatch(move |editor, _| {
+                scroll_editor(editor, step_offset, direction, true, sync_cursor)
+            })
+            .await;
         }
         Ok(())
     });
@@ -6170,11 +6242,19 @@ fn align_view_middle(cx: &mut Context) {
 }
 
 fn scroll_up(cx: &mut Context) {
-    scroll(cx, cx.count(), Direction::Backward, false);
+    scroll(cx, cx.count(), Direction::Backward, true, false);
 }
 
 fn scroll_down(cx: &mut Context) {
-    scroll(cx, cx.count(), Direction::Forward, false);
+    scroll(cx, cx.count(), Direction::Forward, true, false);
+}
+
+fn scroll_left(cx: &mut Context) {
+    scroll(cx, cx.count(), Direction::Backward, false, false);
+}
+
+fn scroll_right(cx: &mut Context) {
+    scroll(cx, cx.count(), Direction::Forward, false, false);
 }
 
 fn goto_ts_object_impl(cx: &mut Context, object: &'static str, direction: Direction) {

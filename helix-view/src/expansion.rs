@@ -31,6 +31,7 @@ pub enum Variable {
     ///
     /// This corresponds to `crate::Document::display_name`.
     BufferName,
+    BufferDirName,
     /// A string containing the line-ending of the currently focused document.
     LineEnding,
     /// Curreng working directory
@@ -52,6 +53,7 @@ impl Variable {
         Self::CursorLine,
         Self::CursorColumn,
         Self::BufferName,
+        Self::BufferDirName,
         Self::LineEnding,
         Self::CurrentWorkingDirectory,
         Self::WorkspaceDirectory,
@@ -66,6 +68,7 @@ impl Variable {
             Self::CursorLine => "cursor_line",
             Self::CursorColumn => "cursor_column",
             Self::BufferName => "buffer_name",
+            Self::BufferDirName => "buffer_dir_name",
             Self::LineEnding => "line_ending",
             Self::CurrentWorkingDirectory => "current_working_directory",
             Self::WorkspaceDirectory => "workspace_directory",
@@ -81,6 +84,7 @@ impl Variable {
             "cursor_line" => Some(Self::CursorLine),
             "cursor_column" => Some(Self::CursorColumn),
             "buffer_name" => Some(Self::BufferName),
+            "buffer_dir_name" => Some(Self::BufferDirName),
             "line_ending" => Some(Self::LineEnding),
             "workspace_directory" => Some(Self::WorkspaceDirectory),
             "current_working_directory" => Some(Self::CurrentWorkingDirectory),
@@ -240,6 +244,19 @@ fn expand_variable(editor: &Editor, variable: Variable) -> Result<Cow<'static, s
             // the scratch buffer name by partially reimplementing `display_name`.
             if let Some(path) = doc.relative_path() {
                 Ok(Cow::Owned(path.to_string_lossy().into_owned()))
+            } else {
+                Ok(Cow::Borrowed(crate::document::SCRATCH_BUFFER_NAME))
+            }
+        }
+        Variable::BufferDirName => {
+            // Note: usually we would use `Document::display_name` but we can statically borrow
+            // the scratch buffer name by partially reimplementing `display_name`.
+            if let Some(path) = doc.relative_path() {
+                if let Some(dir) = path.parent() {
+                    Ok(Cow::Owned(dir.to_string_lossy().into_owned()))
+                } else {
+                    Ok(Cow::Borrowed(crate::document::SCRATCH_BUFFER_NAME))
+                }
             } else {
                 Ok(Cow::Borrowed(crate::document::SCRATCH_BUFFER_NAME))
             }
