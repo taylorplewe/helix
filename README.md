@@ -8,6 +8,8 @@ This fork adds a collection of various other forks, fixes & small features to he
 - scroll horizontally as well as vertically to reveal definition following `goto_definition` ([PR](https://github.com/helix-editor/helix/pull/14795))
 - `:lang-config-open` - opens your `languages.toml` file, similar to `:config-open` for `config.toml`
 - smooth scrolling animation
+- clickable bufferline buffers (commonly called "tabs") ([PR](https://github.com/helix-editor/helix/pull/12173))
+- double-click to select word, triple-click to select line ([PR](https://github.com/helix-editor/helix/pull/12514))
 
 ---
 
